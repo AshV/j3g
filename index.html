@@ -1,639 +1,679 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anaglyph 3D Image Creator</title>
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Anaglyph 3D</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --safe-area-top: env(safe-area-inset-top, 0px);
+            --safe-area-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
+        html,
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
-
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
-            color: white;
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-            font-weight: 300;
-        }
-
-        .main-content {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-        }
-
-        .camera-section {
-            margin-bottom: 30px;
-        }
-
-        .camera-container {
-            position: relative;
+            height: 100%;
             width: 100%;
-            max-width: 640px;
-            margin: 0 auto 20px;
-            border-radius: 15px;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-
-        #camera {
-            width: 100%;
-            height: auto;
-            display: block;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #000;
+            color: white;
+            position: fixed;
+            /* Prevent bouncy scroll on iOS */
         }
 
-        .camera-overlay {
+        .app-container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* --- Header --- */
+        .app-header {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
-            bottom: 0;
+            padding: calc(10px + var(--safe-area-top)) 20px 10px;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent);
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            /* Let clicks pass through to camera if needed */
+        }
+
+        .app-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+        }
+
+        .btn-icon {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(0,0,0,0.3);
+            font-size: 1.2rem;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        /* --- Camera View --- */
+        .camera-view {
+            flex: 1;
+            position: relative;
+            background: #000;
+            overflow: hidden;
+        }
+
+        #camera {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* --- Overlays & Guides --- */
+        .camera-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             pointer-events: none;
         }
 
         .capture-guide {
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 25px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            padding: 12px 24px;
+            border-radius: 30px;
             text-align: center;
-            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .guide-text {
-            font-size: 1rem;
-            margin-bottom: 5px;
+            font-size: 0.95rem;
+            font-weight: 500;
         }
 
         .guide-arrow {
             font-size: 1.5rem;
-            font-weight: bold;
+            line-height: 1;
+            margin-top: 4px;
         }
 
-        .camera-controls {
+        /* --- Thumbnails --- */
+        .thumbnails-container {
+            position: absolute;
+            bottom: calc(100px + var(--safe-area-bottom));
+            /* Above controls */
+            left: 20px;
+            right: 20px;
             display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
+            justify-content: space-between;
+            pointer-events: none;
         }
 
-        .btn {
-            padding: 12px 24px;
-            border: none;
+        .thumbnail {
+            width: 80px;
+            height: 106px;
+            /* 4:3 ratio approx */
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: inherit;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+            overflow: hidden;
+            position: relative;
+            backdrop-filter: blur(4px);
+            transition: transform 0.3s ease;
         }
 
-        .btn:disabled {
+        .thumbnail.active {
+            border-color: #667eea;
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .thumbnail-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.6);
+            font-size: 0.7rem;
+            text-align: center;
+            padding: 2px;
+        }
+
+        /* --- Controls --- */
+        .controls-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 20px calc(20px + var(--safe-area-bottom));
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 20%, transparent);
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 20px;
+            z-index: 20;
+        }
+
+        .shutter-btn {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            border: 4px solid white;
+            background: transparent;
+            position: relative;
+            cursor: pointer;
+            padding: 0;
+            transition: transform 0.1s;
+        }
+
+        .shutter-btn::after {
+            content: '';
+            position: absolute;
+            inset: 4px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+
+        .shutter-btn:active {
+            transform: scale(0.95);
+        }
+
+        .shutter-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+        .btn-action {
+            padding: 12px 24px;
+            border-radius: 20px;
+            border: none;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
 
-        .btn-primary:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
         }
 
         .btn-secondary {
-            background: #f8f9fa;
-            color: #495057;
-            border: 2px solid #e9ecef;
-        }
-
-        .btn-secondary:hover:not(:disabled) {
-            background: #e9ecef;
-            transform: translateY(-2px);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
             color: white;
-        }
-
-        .btn-success:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
-        }
-
-        .btn-download {
-            background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%);
-            color: white;
-        }
-
-        .btn-download:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(253, 126, 20, 0.4);
-        }
-
-        .btn-reset {
-            background: #6c757d;
-            color: white;
-        }
-
-        .btn-reset:hover {
-            background: #5a6268;
-            transform: translateY(-2px);
-        }
-
-        .images-section {
-            margin-bottom: 30px;
-        }
-
-        .image-preview {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        .image-container {
-            text-align: center;
-        }
-
-        .image-container h3 {
-            margin-bottom: 15px;
-            color: #495057;
-            font-weight: 600;
-        }
-
-        .preview-placeholder {
-            background: #f8f9fa;
-            border: 2px dashed #dee2e6;
-            border-radius: 12px;
-            padding: 40px 20px;
-            color: #6c757d;
-            font-style: italic;
-        }
-
-        .preview-placeholder img {
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        .result-section {
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        .result-section h3 {
-            margin-bottom: 20px;
-            color: #495057;
-            font-weight: 600;
-        }
-
-        .anaglyph-container {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 20px;
+            justify-content: center;
+            font-size: 1.2rem;
+            padding: 0;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-secondary:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* --- Modals/Instructions --- */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: none;
+            padding: 40px 20px;
+            overflow-y: auto;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.visible {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            color: #333;
+            padding: 30px;
+            border-radius: 24px;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .modal-content ol {
+            padding-left: 20px;
+            margin-bottom: 20px;
+        }
+
+        .modal-content li {
+            margin-bottom: 12px;
+        }
+
+        .close-modal {
+            background: #eee;
+            border: none;
+            padding: 12px;
+            width: 100%;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
+        /* --- Result View --- */
+        .result-view {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 50;
+            display: none;
+            flex-direction: column;
+        }
+
+        .result-view.visible {
+            display: flex;
+        }
+
+        .result-image-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
         }
 
         #anaglyphCanvas {
             max-width: 100%;
-            height: auto;
+            max-height: 100%;
+            object-fit: contain;
             border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
         }
 
-        .anaglyph-controls {
+        .result-actions {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
             display: flex;
             gap: 15px;
-            flex-wrap: wrap;
             justify-content: center;
+            padding-bottom: calc(20px + var(--safe-area-bottom));
         }
 
-        .instructions {
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 25px;
-            border-left: 4px solid #667eea;
-        }
-
-        .instructions h3 {
-            margin-bottom: 15px;
-            color: #495057;
-            font-weight: 600;
-        }
-
-        .instructions ol {
-            margin-left: 20px;
-            margin-bottom: 20px;
-        }
-
-        .instructions li {
-            margin-bottom: 8px;
-            color: #495057;
-        }
-
-        .instructions strong {
-            color: #667eea;
-        }
-
-        .tip {
-            background: #e3f2fd;
-            border-radius: 8px;
-            padding: 15px;
-            border-left: 4px solid #2196f3;
-        }
-
-        .tip strong {
-            color: #1976d2;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 15px;
-            }
-
-            .header h1 {
-                font-size: 2rem;
-            }
-
-            .main-content {
-                padding: 20px;
-            }
-
-            .image-preview {
-                grid-template-columns: 1fr;
-            }
-
-            .camera-controls {
-                flex-direction: column;
-                align-items: center;
-            }
-
-            .btn {
-                width: 100%;
-                max-width: 300px;
-                justify-content: center;
-            }
-        }
-
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        /* Utilities */
+        .hidden {
+            display: none !important;
         }
     </style>
 </head>
+
 <body>
-    <div class="container">
-        <header class="header">
-            <h1>🎭 Anaglyph 3D Image Creator</h1>
-            <p>Capture two images 6.5cm apart to create stunning 3D anaglyph images</p>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1 class="app-title">Anaglyph 3D</h1>
+            <button id="btnHelp" class="btn-icon">?</button>
         </header>
 
-        <div class="main-content">
-            <div class="camera-section">
-                <div class="camera-container">
-                    <video id="camera" autoplay playsinline muted></video>
-                    <div class="camera-overlay">
-                        <div class="capture-guide">
-                            <div class="guide-text">Position your camera 6.5cm to the left</div>
-                            <div class="guide-arrow">←</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="camera-controls">
-                    <button id="startCamera" class="btn btn-primary">
-                        📷 Start Camera
-                    </button>
-                    <button id="captureLeft" class="btn btn-secondary" disabled>
-                        📸 Capture Left Image
-                    </button>
-                    <button id="captureRight" class="btn btn-secondary" disabled>
-                        📸 Capture Right Image
-                    </button>
-                    <button id="createAnaglyph" class="btn btn-success" disabled>
-                        🎭 Create 3D Anaglyph
-                    </button>
+        <!-- Camera View -->
+        <div class="camera-view">
+            <video id="camera" autoplay playsinline muted></video>
+
+            <!-- Overlay Guide -->
+            <div class="camera-overlay" id="guideOverlay">
+                <div class="capture-guide">
+                    <div class="guide-text" id="guideText">Start the camera to begin</div>
+                    <div class="guide-arrow" id="guideArrow"></div>
                 </div>
             </div>
 
-            <div class="images-section">
-                <div class="image-preview">
-                    <div class="image-container">
-                        <h3>Left Image</h3>
-                        <div id="leftPreview" class="preview-placeholder">
-                            <span>No image captured</span>
-                        </div>
-                    </div>
-                    <div class="image-container">
-                        <h3>Right Image</h3>
-                        <div id="rightPreview" class="preview-placeholder">
-                            <span>No image captured</span>
-                        </div>
-                    </div>
+            <!-- Previews -->
+            <div class="thumbnails-container">
+                <div class="thumbnail" id="leftThumb">
+                    <div class="thumbnail-label">Left</div>
+                </div>
+                <div class="thumbnail" id="rightThumb">
+                    <div class="thumbnail-label">Right</div>
                 </div>
             </div>
+        </div>
 
-            <div class="result-section" id="resultSection" style="display: none;">
-                <h3>🎭 3D Anaglyph Result</h3>
-                <div class="anaglyph-container">
-                    <canvas id="anaglyphCanvas"></canvas>
-                    <div class="anaglyph-controls">
-                        <button id="downloadAnaglyph" class="btn btn-download">
-                            💾 Download 3D Image
-                        </button>
-                        <button id="resetAll" class="btn btn-reset">
-                            🔄 Reset All
-                        </button>
-                    </div>
-                </div>
-            </div>
+        <!-- Controls -->
+        <div class="controls-bar">
+            <!-- Initial State -->
+            <button id="startCamera" class="btn-action btn-primary">Start Camera</button>
 
-            <div class="instructions">
-                <h3>📋 How to Use</h3>
-                <ol>
-                    <li>Click "Start Camera" to begin</li>
-                    <li>Position your camera and capture the left image</li>
-                    <li>Move your camera <strong>6.5cm to the right</strong> (or move the subject 6.5cm to the left)</li>
-                    <li>Capture the right image from the new position</li>
-                    <li>Click "Create 3D Anaglyph" to generate your 3D image</li>
-                    <li>Download the result and view with red-cyan 3D glasses!</li>
-                </ol>
-                <div class="tip">
-                    <strong>💡 Tip:</strong> For best results, keep the camera steady and ensure the subject doesn't move between captures.
-                </div>
+            <!-- Capture State -->
+            <div id="captureControls" class="hidden" style="display: flex; gap: 20px; align-items: center;">
+                <button id="btnReset" class="btn-secondary">↺</button>
+                <button id="shutterBtn" class="shutter-btn"></button>
+                <button id="btnFinish" class="btn-secondary" disabled>✓</button>
             </div>
         </div>
     </div>
 
+    <!-- Instructions Modal -->
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <h3>How to Use</h3>
+            <ol>
+                <li>Tap <strong>Start Camera</strong></li>
+                <li>Capture the <strong>Left Image</strong></li>
+                <li>Move camera <strong>6.5cm Right</strong> →</li>
+                <li>Capture the <strong>Right Image</strong></li>
+                <li>Tap the checkmark to create 3D image</li>
+            </ol>
+            <button class="close-modal" id="closeHelp">Got it</button>
+        </div>
+    </div>
+
+    <!-- Result View -->
+    <div id="resultView" class="result-view">
+        <header class="app-header">
+            <h1 class="app-title">Result</h1>
+            <button id="closeResult" class="btn-icon">✕</button>
+        </header>
+
+        <div class="result-image-container">
+            <canvas id="anaglyphCanvas"></canvas>
+        </div>
+
+        <div class="result-actions">
+            <button id="downloadBtn" class="btn-action btn-primary" style="flex: 1;">Save Image</button>
+        </div>
+    </div>
+
     <script>
-        class Anaglyph3DCreator {
+        class AnaglyphApp {
             constructor() {
-                this.leftImage = null;
-                this.rightImage = null;
-                this.stream = null;
-                this.videoElement = null;
-                this.canvas = null;
-                this.ctx = null;
-                this.isCapturing = false;
-                
+                this.state = {
+                    leftImage: null,
+                    rightImage: null,
+                    stream: null,
+                    step: 'start' // start, capturing-left, capturing-right, done
+                };
+
+                this.elements = {
+                    video: document.getElementById('camera'),
+                    guideOverlay: document.getElementById('guideOverlay'),
+                    guideText: document.getElementById('guideText'),
+                    guideArrow: document.getElementById('guideArrow'),
+                    leftThumb: document.getElementById('leftThumb'),
+                    rightThumb: document.getElementById('rightThumb'),
+                    startBtn: document.getElementById('startCamera'),
+                    captureControls: document.getElementById('captureControls'),
+                    shutterBtn: document.getElementById('shutterBtn'),
+                    finishBtn: document.getElementById('btnFinish'),
+                    resetBtn: document.getElementById('btnReset'),
+                    resultView: document.getElementById('resultView'),
+                    canvas: document.getElementById('anaglyphCanvas'),
+                    helpModal: document.getElementById('helpModal')
+                };
+
                 this.init();
             }
 
             init() {
-                this.setupEventListeners();
-                this.createCanvas();
+                this.setupListeners();
             }
 
-            setupEventListeners() {
-                document.getElementById('startCamera').addEventListener('click', () => this.startCamera());
-                document.getElementById('captureLeft').addEventListener('click', () => this.captureImage('left'));
-                document.getElementById('captureRight').addEventListener('click', () => this.captureImage('right'));
-                document.getElementById('createAnaglyph').addEventListener('click', () => this.createAnaglyph());
-                document.getElementById('downloadAnaglyph').addEventListener('click', () => this.downloadAnaglyph());
-                document.getElementById('resetAll').addEventListener('click', () => this.resetAll());
-            }
+            setupListeners() {
+                // Main Controls
+                this.elements.startBtn.addEventListener('click', () => this.startCamera());
+                this.elements.shutterBtn.addEventListener('click', (e) => {
+                    e.preventDefault(); // Prevent double firing on some touch devices
+                    this.handleShutter();
+                });
+                this.elements.finishBtn.addEventListener('click', () => this.createAnaglyph());
+                this.elements.resetBtn.addEventListener('click', () => this.resetCaptures());
 
-            createCanvas() {
-                this.canvas = document.getElementById('anaglyphCanvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.canvas.width = 800;
-                this.canvas.height = 600;
+                // Result View
+                document.getElementById('closeResult').addEventListener('click', () => {
+                    this.elements.resultView.classList.remove('visible');
+                    this.resetCaptures();
+                });
+                document.getElementById('downloadBtn').addEventListener('click', () => this.downloadImage());
+
+                // Help Modal
+                document.getElementById('btnHelp').addEventListener('click', () => {
+                    this.elements.helpModal.classList.add('visible');
+                });
+                document.getElementById('closeHelp').addEventListener('click', () => {
+                    this.elements.helpModal.classList.remove('visible');
+                });
             }
 
             async startCamera() {
                 try {
-                    this.stream = await navigator.mediaDevices.getUserMedia({
+                    this.state.stream = await navigator.mediaDevices.getUserMedia({
                         video: {
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 },
-                            facingMode: 'environment'
+                            facingMode: 'environment', // Rear camera by default
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 }
                         }
                     });
-                    
-                    this.videoElement = document.getElementById('camera');
-                    this.videoElement.srcObject = this.stream;
-                    this.videoElement.play();
-                    
-                    document.getElementById('startCamera').disabled = true;
-                    document.getElementById('captureLeft').disabled = false;
-                    
-                    this.isCapturing = true;
+
+                    this.elements.video.srcObject = this.state.stream;
+                    this.elements.video.play();
+
+                    this.enterCaptureMode();
                 } catch (error) {
-                    console.error('Error accessing camera:', error);
-                    alert('Unable to access camera. Please ensure camera permissions are granted.');
+                    alert('Could not access camera. Please allow permission.');
+                    console.error(error);
+                }
+            }
+
+            enterCaptureMode() {
+                this.state.step = 'capturing-left';
+                this.elements.startBtn.classList.add('hidden');
+                this.elements.captureControls.classList.remove('hidden');
+                this.updateGuide('Capture Left Image', '');
+                this.elements.leftThumb.classList.add('active');
+            }
+
+            handleShutter() {
+                if (this.state.step === 'capturing-left') {
+                    this.captureImage('left');
+                } else if (this.state.step === 'capturing-right') {
+                    this.captureImage('right');
                 }
             }
 
             captureImage(side) {
-                if (!this.isCapturing) return;
+                const video = this.elements.video;
+
+                // Check if video is ready
+                if (video.readyState !== 4) return;
 
                 const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                
-                canvas.width = this.videoElement.videoWidth;
-                canvas.height = this.videoElement.videoHeight;
-                
-                ctx.drawImage(this.videoElement, 0, 0);
-                
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0);
                 const imageData = canvas.toDataURL('image/jpeg', 0.8);
-                
+
                 if (side === 'left') {
-                    this.leftImage = imageData;
-                    this.updatePreview('leftPreview', imageData);
-                    document.getElementById('captureLeft').disabled = true;
-                    document.getElementById('captureRight').disabled = false;
-                    
-                    // Show instruction to move camera
-                    this.showMoveInstruction();
+                    this.state.leftImage = { data: imageData, img: new Image() };
+                    this.state.leftImage.img.src = imageData;
+
+                    this.updateThumbnail(this.elements.leftThumb, imageData);
+
+                    // Transition to next step
+                    this.state.step = 'capturing-right';
+                    this.elements.leftThumb.classList.remove('active');
+                    this.elements.rightThumb.classList.add('active');
+                    this.updateGuide('Move 6.5cm Right', '→');
                 } else {
-                    this.rightImage = imageData;
-                    this.updatePreview('rightPreview', imageData);
-                    document.getElementById('captureRight').disabled = true;
-                    document.getElementById('createAnaglyph').disabled = false;
+                    this.state.rightImage = { data: imageData, img: new Image() };
+                    this.state.rightImage.img.src = imageData;
+
+                    this.updateThumbnail(this.elements.rightThumb, imageData);
+
+                    // Ready to finish
+                    this.state.step = 'done';
+                    this.elements.rightThumb.classList.remove('active');
+                    this.updateGuide('Tap Checkmark to Create 3D', '✓');
+                    this.elements.finishBtn.disabled = false;
+                    this.elements.finishBtn.classList.add('btn-primary');
+                    // auto trigger create if desired, but user might want to retake.
                 }
             }
 
-            updatePreview(containerId, imageData) {
-                const container = document.getElementById(containerId);
-                container.innerHTML = `<img src="${imageData}" alt="Captured image" style="max-width: 100%; height: auto;">`;
+            updateThumbnail(el, src) {
+                // Clear label and set image
+                el.innerHTML = '';
+                const img = document.createElement('img');
+                img.src = src;
+                el.appendChild(img);
             }
 
-            showMoveInstruction() {
-                const overlay = document.querySelector('.camera-overlay');
-                overlay.innerHTML = `
-                    <div class="capture-guide">
-                        <div class="guide-text">Now move camera 6.5cm to the right</div>
-                        <div class="guide-arrow">→</div>
-                    </div>
-                `;
+            updateGuide(text, arrow) {
+                this.elements.guideText.innerText = text;
+                this.elements.guideArrow.innerText = arrow || '';
+            }
+
+            resetCaptures() {
+                this.state.leftImage = null;
+                this.state.rightImage = null;
+                this.state.step = 'capturing-left';
+
+                this.elements.leftThumb.innerHTML = '<div class="thumbnail-label">Left</div>';
+                this.elements.rightThumb.innerHTML = '<div class="thumbnail-label">Right</div>';
+
+                this.elements.leftThumb.classList.add('active');
+                this.elements.rightThumb.classList.remove('active');
+
+                this.elements.finishBtn.disabled = true;
+                this.elements.finishBtn.classList.remove('btn-primary');
+                this.updateGuide('Capture Left Image', '');
+
+                // Keep stream running
             }
 
             createAnaglyph() {
-                if (!this.leftImage || !this.rightImage) return;
+                if (!this.state.leftImage || !this.state.rightImage) return;
 
                 const leftImg = new Image();
                 const rightImg = new Image();
-                
-                leftImg.onload = () => {
-                    rightImg.onload = () => {
-                        this.processAnaglyph(leftImg, rightImg);
-                    };
-                    rightImg.src = this.rightImage;
+
+                let loaded = 0;
+                const onImageLoad = () => {
+                    loaded++;
+                    if (loaded === 2) this.processAnaglyph(leftImg, rightImg);
                 };
-                leftImg.src = this.leftImage;
+
+                leftImg.onload = onImageLoad;
+                rightImg.onload = onImageLoad;
+
+                // Use the data URL we saved
+                leftImg.src = this.state.leftImage.data;
+                rightImg.src = this.state.rightImage.data;
             }
 
             processAnaglyph(leftImg, rightImg) {
-                // Set canvas size to match image dimensions
-                const width = Math.min(leftImg.width, rightImg.width);
-                const height = Math.min(leftImg.height, rightImg.height);
-                
-                this.canvas.width = width;
-                this.canvas.height = height;
-                
-                // Create temporary canvases for processing
-                const leftCanvas = document.createElement('canvas');
-                const rightCanvas = document.createElement('canvas');
-                const leftCtx = leftCanvas.getContext('2d');
-                const rightCtx = rightCanvas.getContext('2d');
-                
-                leftCanvas.width = width;
-                leftCanvas.height = height;
-                rightCanvas.width = width;
-                rightCanvas.height = height;
-                
-                // Draw images to temporary canvases
-                leftCtx.drawImage(leftImg, 0, 0, width, height);
-                rightCtx.drawImage(rightImg, 0, 0, width, height);
-                
-                // Get image data
-                const leftData = leftCtx.getImageData(0, 0, width, height);
-                const rightData = rightCtx.getImageData(0, 0, width, height);
-                
-                // Create anaglyph image data
-                const anaglyphData = this.ctx.createImageData(width, height);
-                
-                for (let i = 0; i < leftData.data.length; i += 4) {
-                    // Red channel from left image
-                    anaglyphData.data[i] = leftData.data[i];
-                    // Green and Blue channels from right image
-                    anaglyphData.data[i + 1] = rightData.data[i + 1];
-                    anaglyphData.data[i + 2] = rightData.data[i + 2];
-                    // Alpha channel
-                    anaglyphData.data[i + 3] = 255;
+                // Use sizes from the first image found
+                const w = leftImg.naturalWidth || leftImg.width;
+                const h = leftImg.naturalHeight || leftImg.height;
+
+                const canvas = this.elements.canvas;
+                const ctx = canvas.getContext('2d');
+
+                canvas.width = w;
+                canvas.height = h;
+
+                // Draw and get data
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = w;
+                tempCanvas.height = h;
+                const tempCtx = tempCanvas.getContext('2d');
+
+                // Get Left Data
+                tempCtx.clearRect(0, 0, w, h);
+                tempCtx.drawImage(leftImg, 0, 0, w, h);
+                const leftData = tempCtx.getImageData(0, 0, w, h);
+
+                // Get Right Data
+                tempCtx.clearRect(0, 0, w, h);
+                tempCtx.drawImage(rightImg, 0, 0, w, h);
+                const rightData = tempCtx.getImageData(0, 0, w, h);
+
+                const finalData = ctx.createImageData(w, h);
+                const d = finalData.data;
+                const l = leftData.data;
+                const r = rightData.data;
+
+                for (let i = 0; i < d.length; i += 4) {
+                    d[i] = l[i];     // Red from Left
+                    d[i + 1] = r[i + 1]; // Green from Right
+                    d[i + 2] = r[i + 2]; // Blue from Right
+                    d[i + 3] = 255;    // Alpha
                 }
-                
-                // Put the anaglyph data to canvas
-                this.ctx.putImageData(anaglyphData, 0, 0);
-                
-                // Show result section
-                document.getElementById('resultSection').style.display = 'block';
-                
-                // Scroll to result
-                document.getElementById('resultSection').scrollIntoView({ 
-                    behavior: 'smooth' 
-                });
+
+                ctx.putImageData(finalData, 0, 0);
+
+                this.elements.resultView.classList.add('visible');
             }
 
-            downloadAnaglyph() {
+            downloadImage() {
                 const link = document.createElement('a');
-                link.download = 'anaglyph-3d-image.png';
-                link.href = this.canvas.toDataURL();
+                link.download = `anaglyph-${Date.now()}.png`;
+                link.href = this.elements.canvas.toDataURL();
                 link.click();
-            }
-
-            resetAll() {
-                // Stop camera stream
-                if (this.stream) {
-                    this.stream.getTracks().forEach(track => track.stop());
-                }
-                
-                // Reset variables
-                this.leftImage = null;
-                this.rightImage = null;
-                this.stream = null;
-                this.isCapturing = false;
-                
-                // Reset UI
-                this.videoElement.srcObject = null;
-                document.getElementById('leftPreview').innerHTML = '<span>No image captured</span>';
-                document.getElementById('rightPreview').innerHTML = '<span>No image captured</span>';
-                document.getElementById('resultSection').style.display = 'none';
-                
-                // Reset buttons
-                document.getElementById('startCamera').disabled = false;
-                document.getElementById('captureLeft').disabled = true;
-                document.getElementById('captureRight').disabled = true;
-                document.getElementById('createAnaglyph').disabled = true;
-                
-                // Reset camera overlay
-                const overlay = document.querySelector('.camera-overlay');
-                overlay.innerHTML = `
-                    <div class="capture-guide">
-                        <div class="guide-text">Position your camera 6.5cm to the left</div>
-                        <div class="guide-arrow">←</div>
-                    </div>
-                `;
             }
         }
 
-        // Initialize the application when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            new Anaglyph3DCreator();
+            new AnaglyphApp();
         });
     </script>
 </body>
+
 </html>
